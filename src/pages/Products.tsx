@@ -18,6 +18,27 @@ interface CompanyProfile {
   phone: string;
 }
 
+const ImageWithSkeleton = ({ src, alt }: { src: string, alt: string }) => {
+  const [loaded, setLoaded] = useState(false);
+  
+  return (
+    <div className="relative w-full h-full">
+      {!loaded && (
+        <div className="absolute inset-0 bg-zinc-800 animate-pulse flex items-center justify-center">
+          <Package size={32} className="text-zinc-700" />
+        </div>
+      )}
+      <img 
+        src={src} 
+        alt={alt} 
+        className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`} 
+        onLoad={() => setLoaded(true)}
+        referrerPolicy="no-referrer" 
+      />
+    </div>
+  );
+};
+
 export default function Products() {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
@@ -128,8 +149,8 @@ export default function Products() {
             <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col">
               {p.imageUrl ? (
                 <div className="h-48 w-full bg-zinc-800 relative">
-                  <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
+                  <ImageWithSkeleton src={p.imageUrl} alt={p.name} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
                 </div>
               ) : (
                 <div className="h-48 w-full bg-zinc-800 flex items-center justify-center">

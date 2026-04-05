@@ -18,7 +18,7 @@ service cloud.firestore {
         (
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-          (request.auth.token.email == "zagueiro0162@gmail.com" && request.auth.token.email_verified == true)
+          (request.auth.token.email == "zagueiro0162@gmail.com")
         );
     }
 
@@ -38,7 +38,7 @@ service cloud.firestore {
       return hasOnlyAllowedFields(['uid', 'name', 'email', 'phone', 'role', 'createdAt', 'adminCode']) &&
              data.uid is string && data.uid == request.auth.uid &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.email is string && isValidEmail(data.email) &&
+             (data.email == '' || (data.email is string && isValidEmail(data.email))) &&
              (data.phone == null || (data.phone is string && data.phone.size() <= 20)) &&
              data.role in ['client', 'admin'] &&
              data.createdAt is string;

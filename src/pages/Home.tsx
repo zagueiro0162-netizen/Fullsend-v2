@@ -22,6 +22,27 @@ interface CompanyProfile {
   cnpj: string;
 }
 
+const ImageWithSkeleton = ({ src, alt }: { src: string, alt: string }) => {
+  const [loaded, setLoaded] = useState(false);
+  
+  return (
+    <div className="relative w-full h-full">
+      {!loaded && (
+        <div className="absolute inset-0 bg-zinc-800 animate-pulse flex items-center justify-center">
+          <Package size={24} className="text-zinc-700" />
+        </div>
+      )}
+      <img 
+        src={src} 
+        alt={alt} 
+        className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`} 
+        onLoad={() => setLoaded(true)}
+        referrerPolicy="no-referrer" 
+      />
+    </div>
+  );
+};
+
 export default function Home() {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
@@ -176,7 +197,7 @@ export default function Home() {
               >
                 {product.imageUrl ? (
                   <div className="h-28 w-full bg-zinc-800 relative">
-                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <ImageWithSkeleton src={product.imageUrl} alt={product.name} />
                   </div>
                 ) : (
                   <div className="h-28 w-full bg-zinc-800 flex items-center justify-center">

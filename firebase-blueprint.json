@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application (client or admin)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string", "description": "User's full name" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string", "description": "User's phone number" },
+        "role": { "type": "string", "enum": ["client", "admin"], "description": "User role" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role", "createdAt"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "A mechanical service offered by the shop",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "estimatedTime": { "type": "string", "description": "E.g., '2 horas', '1 dia'" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "description", "price", "estimatedTime", "createdAt"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "A booking made by a client for a service",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of the user who booked" },
+        "serviceId": { "type": "string", "description": "ID of the service booked" },
+        "date": { "type": "string", "description": "Date of the appointment YYYY-MM-DD" },
+        "time": { "type": "string", "description": "Time of the appointment HH:MM" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "completed", "cancelled"] },
+        "notes": { "type": "string", "description": "Optional notes from the client" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "serviceId", "date", "time", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles"
+    },
+    "/services/{serviceId}": {
+      "schema": { "$ref": "#/entities/Service" },
+      "description": "Stores available mechanical services"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/Appointment" },
+      "description": "Stores service appointments"
+    }
+  }
+}

@@ -1,0 +1,148 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "zagueiro0162@gmail.com" && request.auth.token.email_verified == true)
+        );
+    }
+
+    function hasOnlyAllowedFields(allowedFields) {
+      return request.resource.data.keys().hasOnly(allowedFields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['uid', 'name', 'email', 'phone', 'role', 'createdAt', 'adminCode']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && isValidEmail(data.email) &&
+             (data.phone == null || (data.phone is string && data.phone.size() <= 20)) &&
+             data.role in ['client', 'admin'] &&
+             data.createdAt is string;
+    }
+
+    function isValidService() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['name', 'description', 'price', 'estimatedTime', 'status', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.description is string && data.description.size() < 1000 &&
+             data.price is number && data.price >= 0 &&
+             data.estimatedTime is string && data.estimatedTime.size() < 50 &&
+             (data.status == null || data.status in ['available', 'unavailable', 'on_request']) &&
+             data.createdAt is string;
+    }
+
+    function isValidProduct() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['name', 'description', 'price', 'imageUrl', 'status', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.description is string && data.description.size() < 1000 &&
+             data.price is number && data.price >= 0 &&
+             (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() < 1000)) &&
+             (data.status == null || data.status in ['available', 'out_of_stock']) &&
+             data.createdAt is string;
+    }
+
+    function isValidAppointment() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['userId', 'serviceId', 'date', 'time', 'status', 'notes', 'createdAt']) &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.serviceId is string && data.serviceId.size() > 0 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.time is string && data.time.matches("^\\d{2}:\\d{2}$") &&
+             data.status in ['pending', 'confirmed', 'completed', 'cancelled'] &&
+             (data.notes == null || (data.notes is string && data.notes.size() < 500)) &&
+             data.createdAt is string;
+    }
+
+    function isValidOrder() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['userId', 'productId', 'productName', 'price', 'status', 'createdAt']) &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.productId is string && data.productId.size() > 0 &&
+             data.productName is string && data.productName.size() > 0 &&
+             data.price is number && data.price >= 0 &&
+             data.status in ['pending', 'completed', 'cancelled'] &&
+             data.createdAt is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    
+    match /settings/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // Allow user to create their own profile, but only as a 'client' unless they are already an admin OR provide the correct adminCode
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser() && 
+                    (request.resource.data.role == 'client' || isAdmin() || (request.resource.data.role == 'admin' && request.resource.data.adminCode == 'admin123'));
+      // Allow user to update their own profile, but cannot change role
+      allow update: if isAuthenticated() && isValidUser() && 
+                    ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /services/{serviceId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAdmin() && isValidService();
+      allow update: if isAdmin() && isValidService();
+      allow delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAdmin() && isValidProduct();
+      allow update: if isAdmin() && isValidProduct();
+      allow delete: if isAdmin();
+    }
+
+    match /appointments/{appointmentId} {
+      // Users can read their own appointments, admins can read all
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Users can create their own appointments
+      allow create: if isAuthenticated() && isValidAppointment() && 
+                    (request.resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Users can update their own appointments (e.g., to cancel), admins can update any
+      allow update: if isAuthenticated() && isValidAppointment() && 
+                    ((resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid) || isAdmin());
+      
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidOrder() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() && isValidOrder();
+      allow delete: if isAdmin();
+    }
+  }
+}
